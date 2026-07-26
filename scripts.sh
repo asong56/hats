@@ -60,7 +60,7 @@ release() {
   rm -rf ./dist
   mkdir -p ./dist
 
-  platforms="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64"
+  platforms="linux/amd64 darwin/arm64 windows/amd64"
 
   for platform in $platforms; do
     os=${platform%/*}
