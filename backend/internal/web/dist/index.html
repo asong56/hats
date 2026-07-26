@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Redew</title>
+  <meta name="color-scheme" content="light dark">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/code-theme.css">
+</head>
+<body>
+  <header id="titlebar">
+    <hgroup>
+      <p id="brand">Redew</p>
+    </hgroup>
+    <search>
+      <form id="search-form" role="search">
+        <label for="search-input">Search articles</label>
+        <input id="search-input" type="search" name="q" placeholder="Search…" autocomplete="off">
+      </form>
+    </search>
+    <menu id="titlebar-actions">
+      <li>
+        <button id="refresh-all-button" type="button" title="Refresh all feeds" aria-label="Refresh all feeds">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-refresh"></use></svg>
+        </button>
+      </li>
+      <li>
+        <button id="add-feed-button" type="button" title="Add feed" aria-label="Add feed">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-plus"></use></svg>
+        </button>
+      </li>
+      <li>
+        <button id="settings-button" type="button" title="Settings" aria-label="Settings">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-settings"></use></svg>
+        </button>
+      </li>
+    </menu>
+  </header>
+
+  <nav id="sidebar" aria-label="Feeds and groups">
+    <ul id="smart-views">
+      <li><a href="#/all" data-view="all">All articles</a></li>
+      <li><a href="#/bookmarks" data-view="bookmarks">Favorites</a></li>
+    </ul>
+    <hr>
+    <ul id="group-tree"></ul>
+  </nav>
+
+  <main id="content">
+    <section id="article-list-pane" aria-label="Article list">
+      <header id="list-heading">
+        <h1 id="list-title">All articles</h1>
+      </header>
+      <ul id="article-list"></ul>
+      <p id="article-list-empty" hidden>No articles here yet.</p>
+    </section>
+
+    <article id="reading-pane" hidden>
+      <header id="reading-header">
+        <h1 id="reading-title"></h1>
+        <p id="reading-meta">
+          <a id="reading-feed-name" href="#"></a>
+          <time id="reading-date"></time>
+        </p>
+      </header>
+      <section id="reading-body"></section>
+    </article>
+
+    <p id="reading-placeholder">Select an article to start reading.</p>
+  </main>
+
+  <footer id="toolbar" hidden>
+    <menu id="toolbar-actions">
+      <li>
+        <button id="toolbar-favorite" type="button" title="Favorite" aria-label="Favorite" aria-pressed="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-star"></use></svg>
+          <span>Favorite</span>
+        </button>
+      </li>
+      <li>
+        <button id="toolbar-open-tab" type="button" title="Open in new tab" aria-label="Open in new tab">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-external"></use></svg>
+          <span>Open</span>
+        </button>
+      </li>
+      <li>
+        <button id="toolbar-export-md" type="button" title="Export as Markdown" aria-label="Export as Markdown">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-markdown"></use></svg>
+          <span>Export</span>
+        </button>
+      </li>
+      <li>
+        <button id="toolbar-more" type="button" title="More" aria-label="More actions" aria-haspopup="true" aria-expanded="false">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><use href="#icon-more"></use></svg>
+          <span>More</span>
+        </button>
+      </li>
+    </menu>
+  </footer>
+
+  <menu id="more-menu" popover="auto">
+    <li><button id="more-mark-unread" type="button">Mark as unread</button></li>
+    <li><button id="more-mark-all-read" type="button">Mark all as read in this feed</button></li>
+    <li><button id="more-delete-bookmark" type="button" hidden>Remove favorite</button></li>
+  </menu>
+
+  <dialog id="add-feed-dialog">
+    <form id="add-feed-form" method="dialog">
+      <h2>Add feed</h2>
+      <p>
+        <label for="add-feed-url">Feed or site URL</label>
+        <input id="add-feed-url" type="url" name="url" placeholder="https://example.com/feed.xml" required autocomplete="off">
+      </p>
+      <ul id="add-feed-discovered" hidden></ul>
+      <menu>
+        <li><button type="button" id="add-feed-cancel">Cancel</button></li>
+        <li><button type="submit" id="add-feed-submit">Add</button></li>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="settings-dialog">
+    <article>
+      <header>
+        <h2>Settings</h2>
+      </header>
+
+      <section aria-labelledby="settings-reading-heading">
+        <h3 id="settings-reading-heading">Reading</h3>
+        <p>
+          <label for="setting-theme">Theme</label>
+          <select id="setting-theme" name="theme">
+            <option value="auto">Follow system</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </p>
+        <p>
+          <label for="setting-hide-read">
+            <input id="setting-hide-read" type="checkbox" name="hide_read">
+            Hide read articles instead of dimming them
+          </label>
+        </p>
+      </section>
+
+      <section aria-labelledby="settings-automation-heading">
+        <h3 id="settings-automation-heading">Automation</h3>
+        <p>
+          <label for="setting-pull-interval">Refresh feeds every</label>
+          <select id="setting-pull-interval" name="pull_interval_seconds">
+            <option value="600">10 minutes</option>
+            <option value="900">15 minutes</option>
+            <option value="1800">30 minutes</option>
+            <option value="3600">1 hour</option>
+            <option value="10800">3 hours</option>
+          </select>
+        </p>
+      </section>
+
+      <section aria-labelledby="settings-storage-heading">
+        <h3 id="settings-storage-heading">Storage</h3>
+        <p>
+          <button id="clear-cache-button" type="button">Clear cache</button>
+          <output id="clear-cache-result"></output>
+        </p>
+        <p id="settings-config-path"></p>
+      </section>
+
+      <section aria-labelledby="settings-subscriptions-heading">
+        <h3 id="settings-subscriptions-heading">Subscriptions</h3>
+        <p>
+          <a id="export-opml-link" href="/api/opml/export">Export OPML</a>
+        </p>
+        <form id="import-opml-form">
+          <label for="import-opml-file">Import OPML</label>
+          <input id="import-opml-file" type="file" name="file" accept=".opml,.xml">
+          <button type="submit">Import</button>
+          <output id="import-opml-result"></output>
+        </form>
+      </section>
+
+      <footer>
+        <button id="settings-close" type="button">Close</button>
+      </footer>
+    </article>
+  </dialog>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="icon-refresh" viewBox="0 0 24 24"><path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4z"/></symbol>
+      <symbol id="icon-plus" viewBox="0 0 24 24"><path fill="currentColor" d="M19 13H13v6h-2v-6H5v-2h6V5h2v6h6z"/></symbol>
+      <symbol id="icon-settings" viewBox="0 0 24 24"><path fill="currentColor" d="M12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7zm7.4-3.5c0-.34-.03-.68-.08-1l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L14.9 2h-4l-.3 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5 2.1 1.6c-.05.32-.08.66-.08 1s.03.68.08 1l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.76 1.7 1l.3 2.9h4l.3-2.9c.6-.24 1.2-.6 1.7-1l2.5 1 2-3.5-2.1-1.6c.05-.32.08-.66.08-1z"/></symbol>
+      <symbol id="icon-star" viewBox="0 0 24 24"><path fill="currentColor" d="M12 17.3 6.2 21l1.5-6.6L2.5 9.7l6.7-.6L12 3l2.8 6.1 6.7.6-5.2 4.7L18 21z"/></symbol>
+      <symbol id="icon-external" viewBox="0 0 24 24"><path fill="currentColor" d="M14 3v2h3.6l-9.8 9.8 1.4 1.4L19 6.4V10h2V3zM5 5h6V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6h-2v6H5z"/></symbol>
+      <symbol id="icon-markdown" viewBox="0 0 24 24"><path fill="currentColor" d="M3 5h18v14H3zM6 16h2v-4l2 2.5L12 12v4h2V8h-2l-2 2.5L8 8H6zm12-4-3 3.5L12 12h2V8h2v4h2z"/></symbol>
+      <symbol id="icon-more" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></symbol>
+    </defs>
+  </svg>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

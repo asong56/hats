@@ -1,0 +1,82 @@
+/* code-theme.css
+ * Locked code highlighting theme: Catppuccin Latte (light) / Mocha (dark).
+ * This is not user-configurable, by design.
+ */
+
+:root {
+  /* Catppuccin Latte */
+  --code-bg-light: #eff1f5;
+  --code-fg-light: #4c4f69;
+  --code-comment-light: #8c8fa1;
+  --code-keyword-light: #8839ef;
+  --code-string-light: #40a02b;
+  --code-number-light: #fe640b;
+  --code-function-light: #1e66f5;
+  --code-tag-light: #d20f39;
+  --code-attr-light: #df8e1d;
+
+  /* Catppuccin Mocha */
+  --code-bg-dark: #1e1e2e;
+  --code-fg-dark: #cdd6f4;
+  --code-comment-dark: #6c7086;
+  --code-keyword-dark: #cba6f7;
+  --code-string-dark: #a6e3a1;
+  --code-number-dark: #fab387;
+  --code-function-dark: #89b4fa;
+  --code-tag-dark: #f38ba8;
+  --code-attr-dark: #f9e2af;
+}
+
+pre.code-block,
+pre.code-block code {
+  background: var(--code-bg-light);
+  color: var(--code-fg-light);
+}
+.tok-comment { color: var(--code-comment-light); font-style: italic; }
+.tok-keyword { color: var(--code-keyword-light); }
+.tok-string  { color: var(--code-string-light); }
+.tok-number  { color: var(--code-number-light); }
+.tok-function{ color: var(--code-function-light); }
+.tok-tag     { color: var(--code-tag-light); }
+.tok-attr    { color: var(--code-attr-light); }
+
+@media (prefers-color-scheme: dark) {
+  pre.code-block,
+  pre.code-block code {
+    background: var(--code-bg-dark);
+    color: var(--code-fg-dark);
+  }
+  .tok-comment { color: var(--code-comment-dark); }
+  .tok-keyword { color: var(--code-keyword-dark); }
+  .tok-string  { color: var(--code-string-dark); }
+  .tok-number  { color: var(--code-number-dark); }
+  .tok-function{ color: var(--code-function-dark); }
+  .tok-tag     { color: var(--code-tag-dark); }
+  .tok-attr    { color: var(--code-attr-dark); }
+}
+
+html[data-theme="dark"] pre.code-block,
+html[data-theme="dark"] pre.code-block code {
+  background: var(--code-bg-dark);
+  color: var(--code-fg-dark);
+}
+html[data-theme="dark"] .tok-comment { color: var(--code-comment-dark); }
+html[data-theme="dark"] .tok-keyword { color: var(--code-keyword-dark); }
+html[data-theme="dark"] .tok-string  { color: var(--code-string-dark); }
+html[data-theme="dark"] .tok-number  { color: var(--code-number-dark); }
+html[data-theme="dark"] .tok-function{ color: var(--code-function-dark); }
+html[data-theme="dark"] .tok-tag     { color: var(--code-tag-dark); }
+html[data-theme="dark"] .tok-attr    { color: var(--code-attr-dark); }
+
+html[data-theme="light"] pre.code-block,
+html[data-theme="light"] pre.code-block code {
+  background: var(--code-bg-light);
+  color: var(--code-fg-light);
+}
+html[data-theme="light"] .tok-comment { color: var(--code-comment-light); }
+html[data-theme="light"] .tok-keyword { color: var(--code-keyword-light); }
+html[data-theme="light"] .tok-string  { color: var(--code-string-light); }
+html[data-theme="light"] .tok-number  { color: var(--code-number-light); }
+html[data-theme="light"] .tok-function{ color: var(--code-function-light); }
+html[data-theme="light"] .tok-tag     { color: var(--code-tag-light); }
+html[data-theme="light"] .tok-attr    { color: var(--code-attr-light); }
