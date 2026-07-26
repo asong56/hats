@@ -3,7 +3,7 @@ name: release
 on:
   push:
     tags:
-      - "v*"
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       tag:
@@ -91,12 +91,20 @@ jobs:
             -o "../build/${{ matrix.bin_name }}" \
             ./cmd/redew
 
-      - name: Package release archive
+      - name: Package release archive (Linux/macOS)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           mkdir -p dist
           cd build
           zip -j "../dist/${{ matrix.asset_name }}" "${{ matrix.bin_name }}" ../README.md
+
+      - name: Package release archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Compress-Archive -Path "build/${{ matrix.bin_name }}", "README.md" -DestinationPath "dist/${{ matrix.asset_name }}" -Force
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
