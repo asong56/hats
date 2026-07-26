@@ -3,7 +3,7 @@ name: release
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -33,21 +33,11 @@ jobs:
             goarch: arm64
             bin_name: redew
             asset_name: redew-macos-arm64.zip
-          - os: macos-latest
-            goos: darwin
-            goarch: amd64
-            bin_name: redew
-            asset_name: redew-macos-amd64.zip
           - os: ubuntu-latest
             goos: linux
             goarch: amd64
             bin_name: redew
             asset_name: redew-linux-amd64.zip
-          - os: ubuntu-latest
-            goos: linux
-            goarch: arm64
-            bin_name: redew
-            asset_name: redew-linux-arm64.zip
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -73,9 +63,6 @@ jobs:
         run: go mod tidy
 
       - name: Run backend tests
-        # Cross-compiled targets can't run their own tests on a foreign
-        # host arch; only test once per runner, on its native architecture.
-        if: (matrix.os == 'ubuntu-latest' && matrix.goarch == 'amd64') || (matrix.os == 'windows-latest') || (matrix.os == 'macos-latest' && matrix.goarch == 'arm64')
         shell: bash
         working-directory: backend
         run: go test ./...
