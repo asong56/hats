@@ -5,7 +5,7 @@
 import { api } from "./api.js";
 import { startAccentClock } from "./accent.js";
 import { highlightCodeBlocks } from "./highlight.js";
-import { domainLabel, formatISODate, groupFeedsForSidebar } from "./util.js";
+import { domainLabel, formatISODate, groupFeedsForSidebar, extractSummary } from "./util.js";
 
 // ---------------------------------------------------------------------
 // State
@@ -89,6 +89,8 @@ function renderSidebar() {
       btn.className = "feed-link";
       btn.dataset.feedId = String(feed.id);
 
+      btn.appendChild(makeFavicon(feed.site_url || feed.link, feed.name));
+
       const nameSpan = document.createElement("span");
       nameSpan.className = "feed-name-text";
       nameSpan.textContent = feed.name;
@@ -107,6 +109,44 @@ function renderSidebar() {
   }
 
   updateSidebarActiveState();
+}
+
+/**
+ * Builds a small favicon element for a feed: tries the site's real favicon
+ * via a lightweight, privacy-respecting proxy-free approach (browser
+ * fetches the origin's own /favicon.ico directly), and falls back to a
+ * colored initial if the image fails to load or there's no URL at all.
+ */
+function makeFavicon(pageUrl, name) {
+  const wrap = document.createElement("span");
+  wrap.className = "feed-favicon";
+
+  let origin = null;
+  try {
+    origin = pageUrl ? new URL(pageUrl).origin : null;
+  } catch {
+    origin = null;
+  }
+
+  const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
+
+  if (!origin) {
+    wrap.textContent = initial;
+    return wrap;
+  }
+
+  const img = document.createElement("img");
+  img.src = origin + "/favicon.ico";
+  img.alt = "";
+  img.width = 16;
+  img.height = 16;
+  img.loading = "lazy";
+  img.addEventListener("error", () => {
+    wrap.innerHTML = "";
+    wrap.textContent = initial;
+  }, { once: true });
+  wrap.appendChild(img);
+  return wrap;
 }
 
 function updateSidebarActiveState() {
@@ -222,15 +262,27 @@ function renderArticleList() {
     title.textContent = item.title || "(untitled)";
     texts.appendChild(title);
 
+    const summaryText = extractSummary(item.content, 140);
+    if (summaryText) {
+      const summary = document.createElement("span");
+      summary.className = "article-summary";
+      summary.textContent = summaryText;
+      texts.appendChild(summary);
+    }
+
     const subline = document.createElement("span");
     subline.className = "article-subline";
-    const feedName = item.feed_name || feedNameFor(item.feed_id);
+    const feed = state.feeds.find((f) => f.id === item.feed_id);
+    const feedName = item.feed_name || (feed ? feed.name : "");
     if (feedName) {
+      subline.appendChild(makeFavicon(feed && (feed.site_url || feed.link), feedName));
       const feedSpan = document.createElement("span");
+      feedSpan.className = "feed-name";
       feedSpan.textContent = feedName;
       subline.appendChild(feedSpan);
     }
     const dateSpan = document.createElement("time");
+    if (feedName) dateSpan.className = "dot-sep";
     dateSpan.textContent = formatISODate(item.pub_date);
     subline.appendChild(dateSpan);
     texts.appendChild(subline);

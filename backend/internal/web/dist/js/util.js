@@ -74,3 +74,19 @@ export function escapeHTML(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+/**
+ * Strips HTML tags from article content and returns a short plain-text
+ * excerpt, used as the one-line summary under each article-list title.
+ */
+export function extractSummary(html, maxLength) {
+  if (!html) return "";
+  const stripped = html
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (stripped.length <= maxLength) return stripped;
+  return stripped.slice(0, maxLength).replace(/\s+\S*$/, "") + "…";
+}
