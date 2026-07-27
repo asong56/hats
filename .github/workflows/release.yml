@@ -148,4 +148,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${{ steps.tag.outputs.value }}" ./dist/*.zip ./dist/checksums.txt \
-            --draft --generate-notes --title "Redew ${{ steps.tag.outputs.value }}"
+            --generate-notes --title "Redew ${{ steps.tag.outputs.value }}"
