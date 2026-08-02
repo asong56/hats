@@ -1,0 +1,61 @@
+name: Release Optimized Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: hats.exe
+            asset_name: windows-x64-executable
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            binary_name: hats
+            asset_name: linux-x64-executable
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary_name: hats
+            asset_name: macos-aarch64-executable
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl-tools (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Compress binary with UPX (Windows and Linux)
+        if: matrix.os != 'macos-latest'
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          version: latest
+          files: |
+            target/${{ matrix.target }}/release/${{ matrix.binary_name }}
+          args: --best --lzma
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: target/${{ matrix.target }}/release/${{ matrix.binary_name }}
+          retention-days: 7
