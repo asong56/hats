@@ -113,6 +113,7 @@ fn get_hosts_path() -> Result<PathBuf> {
 fn is_admin() -> bool {
     #[cfg(target_os = "windows")]
     {
+        #[link(name = "shell32")]
         extern "system" {
             fn IsUserAnAdmin() -> i32;
         }
