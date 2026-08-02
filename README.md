@@ -23,7 +23,7 @@
 ### Build from source (requires Rust 1.75+)
 
 ```bash
-git clone https://github.com/yourusername/hats.git
+git clone https://github.com/asong56/hats.git
 cd hats
 cargo build --release
 sudo cp target/release/hats /usr/local/bin/   # Linux/macOS
