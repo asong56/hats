@@ -1,0 +1,35 @@
+# hats — default configuration
+#
+# auto_flush_dns: whether to flush the OS DNS cache after every `hats apply`
+auto_flush_dns: true
+
+profiles:
+  - id: base-adblock
+    name: "Base Ad-Blocker"
+    enabled: true
+    entries:
+      - ip: "0.0.0.0"
+        domains: ["ad.example.com", "tracker.analytics.com"]
+        comment: "Block tracking domains"
+
+  - id: dev-local
+    name: "Local Development"
+    enabled: true
+    entries:
+      - ip: "127.0.0.1"
+        domains: ["app.local", "api.local", "db.local"]
+        comment: "Local microservices"
+
+  - id: staging-env
+    name: "Staging Environment"
+    enabled: false
+    entries:
+      - ip: "192.168.1.100"
+        domains: ["api.staging.com"]
+
+  - id: dev-suite
+    name: "Full Development Suite"
+    enabled: false
+    include:
+      - base-adblock
+      - dev-local
