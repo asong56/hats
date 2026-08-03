@@ -53,9 +53,20 @@ jobs:
             target/${{ matrix.target }}/release/${{ matrix.binary_name }}
           args: --best --lzma
 
+      - name: Package binary into zip (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" -DestinationPath "${{ matrix.asset_name }}.zip"
+
+      - name: Package binary into zip (Linux and macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          zip -j "${{ matrix.asset_name }}.zip" "target/${{ matrix.target }}/release/${{ matrix.binary_name }}"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.binary_name }}
+          path: ${{ matrix.asset_name }}.zip
           retention-days: 7
