@@ -62,8 +62,24 @@ struct Cli {
     #[arg(short, long, global = true, default_value = "default.yml")]
     config: PathBuf,
 
+    /// Suppress informational output (errors still print to stderr)
+    #[arg(short, long, global = true)]
+    quiet: bool,
+
     #[command(subcommand)]
     command: Option<Commands>,
+}
+
+/// Print an informational/status message to stderr, unless `-q/--quiet` was
+/// passed. Kept separate from data output so `stdout` only ever carries the
+/// thing the user actually asked to see (list tables, status blocks,
+/// dry-run content) and can be safely piped/grepped/redirected.
+macro_rules! info {
+    ($quiet:expr, $($arg:tt)*) => {
+        if !$quiet {
+            eprintln!($($arg)*);
+        }
+    };
 }
 
 #[derive(Subcommand, Debug)]
@@ -129,8 +145,8 @@ fn is_admin() -> bool {
     }
 }
 
-fn flush_dns() {
-    println!("⚡ Flushing system DNS cache...");
+fn flush_dns(quiet: bool) {
+    info!(quiet, "⚡ Flushing system DNS cache...");
     let status = if cfg!(target_os = "windows") {
         Command::new("ipconfig").arg("/flushdns").status()
     } else if cfg!(target_os = "macos") {
@@ -154,13 +170,13 @@ fn flush_dns() {
                 .status()
         }
     } else {
-        println!("⚠️ DNS flushing is not supported on this platform.");
+        info!(quiet, "⚠️ DNS flushing is not supported on this platform.");
         return;
     };
 
     match status {
-        Ok(s) if s.success() => println!("✓ DNS cache flushed successfully."),
-        _ => println!("⚠️ Could not automatically flush DNS cache (this is non-fatal)."),
+        Ok(s) if s.success() => info!(quiet, "✓ DNS cache flushed successfully."),
+        _ => info!(quiet, "⚠️ Could not automatically flush DNS cache (this is non-fatal)."),
     }
 }
 
@@ -168,11 +184,11 @@ fn flush_dns() {
 // Config loading / validation
 // ---------------------------------------------------------------------
 
-fn ensure_config_exists(config_path: &Path) -> Result<()> {
+fn ensure_config_exists(config_path: &Path, quiet: bool) -> Result<()> {
     if !config_path.exists() {
-        println!(
-            "💡 Config file not found. Creating default config at: {:?}",
-            config_path
+        info!(
+            quiet,
+            "💡 Config file not found. Creating default config at: {:?}", config_path
         );
         fs::write(config_path, DEFAULT_YAML)
             .with_context(|| format!("Failed to create default config at {:?}", config_path))?;
@@ -180,8 +196,24 @@ fn ensure_config_exists(config_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn load_config(config_path: &Path) -> Result<Config> {
-    ensure_config_exists(config_path)?;
+/// Load config for commands that are allowed to scaffold a default file on
+/// first run (`apply`, `enable`, `disable`, `check`).
+fn load_config(config_path: &Path, quiet: bool) -> Result<Config> {
+    ensure_config_exists(config_path, quiet)?;
+    load_config_readonly(config_path)
+}
+
+/// Load config for read-only commands (`list`, and anything else that
+/// should never have the side effect of writing a file to disk). Errors
+/// clearly instead of silently creating `default.yml` — a listing command
+/// shouldn't have write side effects.
+fn load_config_readonly(config_path: &Path) -> Result<Config> {
+    if !config_path.exists() {
+        bail!(
+            "Config file not found: {:?}\n\nTry:\n  hats check   (creates a default config if missing)\n  hats apply   (also creates one on first run)",
+            config_path
+        );
+    }
     let yaml_str = fs::read_to_string(config_path)
         .with_context(|| format!("Failed to read config file: {:?}", config_path))?;
     let config: Config =
@@ -393,25 +425,24 @@ fn require_admin() -> Result<()> {
     Ok(())
 }
 
-fn cmd_apply(config_path: &Path, no_flush: bool, dry_run: bool) -> Result<()> {
-    let config = load_config(config_path)?;
+fn cmd_apply(config_path: &Path, no_flush: bool, dry_run: bool, quiet: bool) -> Result<()> {
+    let config = load_config(config_path, quiet)?;
     let generated_block_content = generate_managed_block(&config);
 
     if dry_run {
-        println!("--- [DRY RUN] Generated Managed Block ---");
+        // Dry-run output IS the data the user asked for — this stays on stdout
+        // even in quiet mode so `hats apply --dry-run -q > preview.txt` works.
         println!(
-            "{}\n# Managed by hats CLI\n{}",
-            BEGIN_TAG, generated_block_content
+            "{}\n# Managed by hats CLI\n{}\n{}",
+            BEGIN_TAG, generated_block_content, END_TAG
         );
-        println!("{}", END_TAG);
-        println!("--- End of DRY RUN ---");
         return Ok(());
     }
 
     require_admin()?;
 
     let hosts_path = get_hosts_path()?;
-    println!("Target system hosts path: {:?}", hosts_path);
+    info!(quiet, "Target system hosts path: {:?}", hosts_path);
 
     let existing_hosts = fs::read_to_string(&hosts_path).unwrap_or_default();
 
@@ -422,7 +453,7 @@ fn cmd_apply(config_path: &Path, no_flush: bool, dry_run: bool) -> Result<()> {
     if !backup.exists() {
         fs::write(&backup, &existing_hosts)
             .with_context(|| format!("Failed to create backup at {:?}", backup))?;
-        println!("🗄  Backed up original hosts file to: {:?}", backup);
+        info!(quiet, "🗄  Backed up original hosts file to: {:?}", backup);
     }
 
     let clean_content = strip_managed_block(&existing_hosts);
@@ -431,21 +462,25 @@ fn cmd_apply(config_path: &Path, no_flush: bool, dry_run: bool) -> Result<()> {
     fs::write(&hosts_path, final_content)
         .with_context(|| format!("Failed to write to system hosts file at {:?}", hosts_path))?;
 
-    println!("✓ Successfully applied hosts rules!");
+    info!(quiet, "✓ Successfully applied hosts rules!");
 
     if config.auto_flush_dns && !no_flush {
-        flush_dns();
+        flush_dns(quiet);
     }
 
     Ok(())
 }
 
 fn cmd_list(config_path: &Path) -> Result<()> {
-    let config = load_config(config_path)?;
+    // Read-only: never scaffolds a default config as a side effect of
+    // listing. If nothing exists yet, say so and point at the commands
+    // that do create one.
+    let config = load_config_readonly(config_path)?;
     if config.profiles.is_empty() {
-        println!("No profiles defined in {:?}", config_path);
+        eprintln!("No profiles defined in {:?}", config_path);
         return Ok(());
     }
+    // Table is the data being requested -> stdout, always (not gated by -q).
     println!("{:<18} {:<8} {:<28} entries", "ID", "ENABLED", "NAME");
     println!("{}", "-".repeat(70));
     for p in &config.profiles {
@@ -464,17 +499,17 @@ fn cmd_list(config_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn cmd_set_enabled(config_path: &Path, ids: &[String], enabled: bool) -> Result<()> {
+fn cmd_set_enabled(config_path: &Path, ids: &[String], enabled: bool, quiet: bool) -> Result<()> {
     if ids.is_empty() {
-        bail!("Please provide at least one profile id.");
+        bail!("Please provide at least one profile id.\n\nTry:\n  hats enable <id>...\n  hats list   (to see available ids)");
     }
-    let mut config = load_config(config_path)?;
+    let mut config = load_config(config_path, quiet)?;
 
     let known_ids: HashSet<&str> = config.profiles.iter().map(|p| p.id.as_str()).collect();
     for id in ids {
         if !known_ids.contains(id.as_str()) {
             bail!(
-                "Unknown profile id '{}'. Run `hats list` to see available profiles.",
+                "Unknown profile id '{}'.\n\nTry:\n  hats list   (to see available profiles)",
                 id
             );
         }
@@ -488,8 +523,11 @@ fn cmd_set_enabled(config_path: &Path, ids: &[String], enabled: bool) -> Result<
 
     save_config(config_path, &config)?;
     let verb = if enabled { "Enabled" } else { "Disabled" };
-    println!("{} profile(s): {}", verb, ids.join(", "));
-    println!("Run `hats apply` (with sudo/admin) to apply these changes to the system hosts file.");
+    info!(quiet, "{} profile(s): {}", verb, ids.join(", "));
+    info!(
+        quiet,
+        "Run `hats apply` (with sudo/admin) to apply these changes to the system hosts file."
+    );
     Ok(())
 }
 
@@ -514,9 +552,12 @@ fn cmd_status() -> Result<()> {
     }
 
     if block_lines.is_empty() {
-        println!("No hats-managed block currently present in {:?}.", hosts_path);
+        // Status message, not data -> stderr.
+        eprintln!("No hats-managed block currently present in {:?}.", hosts_path);
     } else {
-        println!("Active hats-managed block in {:?}:\n", hosts_path);
+        // The block content itself is the data being requested -> stdout.
+        // The header line describing it is context -> stderr.
+        eprintln!("Active hats-managed block in {:?}:\n", hosts_path);
         for line in block_lines {
             println!("{}", line);
         }
@@ -524,10 +565,11 @@ fn cmd_status() -> Result<()> {
     Ok(())
 }
 
-fn cmd_check(config_path: &Path) -> Result<()> {
-    let config = load_config(config_path)?;
+fn cmd_check(config_path: &Path, quiet: bool) -> Result<()> {
+    let config = load_config(config_path, quiet)?;
     let enabled_count = config.profiles.iter().filter(|p| p.enabled).count();
-    println!(
+    info!(
+        quiet,
         "✓ Configuration is valid: {} profile(s) total, {} enabled.",
         config.profiles.len(),
         enabled_count
@@ -535,7 +577,7 @@ fn cmd_check(config_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn cmd_restore() -> Result<()> {
+fn cmd_restore(quiet: bool) -> Result<()> {
     require_admin()?;
     let hosts_path = get_hosts_path()?;
     let backup = backup_path(&hosts_path);
@@ -549,7 +591,7 @@ fn cmd_restore() -> Result<()> {
         .with_context(|| format!("Failed to read backup at {:?}", backup))?;
     fs::write(&hosts_path, backup_content)
         .with_context(|| format!("Failed to restore hosts file at {:?}", hosts_path))?;
-    println!("✓ Restored {:?} from backup {:?}", hosts_path, backup);
+    info!(quiet, "✓ Restored {:?} from backup {:?}", hosts_path, backup);
     Ok(())
 }
 
@@ -564,13 +606,15 @@ fn main() -> Result<()> {
         no_flush: false,
         dry_run: false,
     }) {
-        Commands::Apply { no_flush, dry_run } => cmd_apply(&cli.config, no_flush, dry_run),
+        Commands::Apply { no_flush, dry_run } => {
+            cmd_apply(&cli.config, no_flush, dry_run, cli.quiet)
+        }
         Commands::List => cmd_list(&cli.config),
-        Commands::Enable { ids } => cmd_set_enabled(&cli.config, &ids, true),
-        Commands::Disable { ids } => cmd_set_enabled(&cli.config, &ids, false),
+        Commands::Enable { ids } => cmd_set_enabled(&cli.config, &ids, true, cli.quiet),
+        Commands::Disable { ids } => cmd_set_enabled(&cli.config, &ids, false, cli.quiet),
         Commands::Status => cmd_status(),
-        Commands::Check => cmd_check(&cli.config),
-        Commands::Restore => cmd_restore(),
+        Commands::Check => cmd_check(&cli.config, cli.quiet),
+        Commands::Restore => cmd_restore(cli.quiet),
     }
 }
 
